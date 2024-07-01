@@ -1,0 +1,23 @@
+[package]
+name = "escrow-program"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[features]
+no-entrypoint = []
+
+[dependencies]
+borsh = "1.2.1"
+solana-program = "1.18.17"
+spl-token = { version = "=4.0.0", features = ["no-entrypoint"] }
+#getrandom = { version = "0.2.2", features = ["custom"] }
+
+[dev-dependencies]
+#anyhow = "1.0.86"
+#solana-program-test = "1.18.15"
+#solana-test-validator = "1.18.15"
+#solana-client = "1.18.15"
+#solana-rpc = "1.18.15"
