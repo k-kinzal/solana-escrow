@@ -57,7 +57,7 @@ impl Client {
         send_amount: u64,
         receive_mint_token_account_pubkey: Pubkey,
         receive_expected_amount: u64,
-    ) -> Result<Signature> {
+    ) -> Result<(Signature, Pubkey)> {
         let send_seller_token_account_pubkey =
             spl_associated_token_account::get_associated_token_address_with_program_id(
                 &self.payer.pubkey(),
@@ -135,9 +135,7 @@ impl Client {
 
         let signature = self.client.send_transaction(&tx).await?;
 
-        println!("Create Account: {:?}", escrow_account.pubkey());
-
-        Ok(signature)
+        Ok((signature, escrow_account.pubkey()))
     }
 
     /// Exchange the tokens in the escrow account.

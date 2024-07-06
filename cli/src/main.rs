@@ -85,7 +85,7 @@ async fn main() -> anyhow::Result<()> {
         json_rpc_url,
         commitment_config,
     ));
-    let mut builder = Client::builder(rpc_client, keypair);
+    let mut builder = Client::builder(rpc_client.clone(), keypair);
     if let Some(token_program_id) = args.token_program_id {
         builder = builder.with_token_program_id(token_program_id);
     }
@@ -94,23 +94,29 @@ async fn main() -> anyhow::Result<()> {
     }
     let escrow = builder.build();
 
-    let signature = match args.command {
+    match args.command {
         Commands::Init {
             send_mint_token_address,
             send_amount,
             receive_mint_token_address,
             receive_expected_amount,
         } => {
-            escrow
+            let (signature, escrow_account_pubkey) = escrow
                 .init(
                     send_mint_token_address,
                     send_amount,
                     receive_mint_token_address,
                     receive_expected_amount,
                 )
-                .await?
+                .await?;
+
+            println!("Create Account: {:?}\n", escrow_account_pubkey);
+            println!("Signature: {:?}", signature);
         }
-        Commands::Exchange { escrow_address } => escrow.exchange(escrow_address).await?,
+        Commands::Exchange { escrow_address } => {
+            let signature = escrow.exchange(escrow_address).await?;
+            println!("Signature: {:?}", signature);
+        }
         Commands::Account { escrow_address } => {
             let account = escrow.account(escrow_address).await?;
             println!("Seller: {:?}", account.seller_pubkey);
@@ -126,9 +132,7 @@ async fn main() -> anyhow::Result<()> {
 
             return Ok(());
         }
-    };
-
-    println!("Signature: {:?}", signature);
+    }
 
     Ok(())
 }
