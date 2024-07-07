@@ -1,5 +1,7 @@
+use anyhow::anyhow;
 use clap::{Parser, Subcommand};
 use escrow_client::Client;
+use solana_cli_config::Config;
 use solana_client::nonblocking::rpc_client::RpcClient;
 use solana_sdk::commitment_config::CommitmentConfig;
 use solana_sdk::pubkey::Pubkey;
@@ -74,7 +76,10 @@ async fn main() -> anyhow::Result<()> {
             })
         })
         .unwrap();
-    let config = solana_cli_config::Config::load(path.to_str().unwrap())?;
+    let path = path
+        .to_str()
+        .ok_or_else(|| anyhow!("config path is invalid"))?;
+    let config = Config::load(path)?;
     let keypair = Keypair::read_from_file(config.keypair_path)
         .map_err(|e| anyhow::Error::msg(e.to_string()))?;
 
