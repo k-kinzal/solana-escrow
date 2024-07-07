@@ -1,4 +1,5 @@
 use borsh::BorshDeserialize;
+use escrow_program::state::Escrow;
 use solana_client::nonblocking::rpc_client::RpcClient;
 use solana_sdk::program_error::ProgramError;
 use solana_sdk::pubkey::Pubkey;
@@ -79,7 +80,7 @@ impl Client {
             .await?;
 
         let escrow_account = Keypair::new();
-        let escrow_account_len = borsh::max_serialized_size::<escrow_program::state::Escrow>()?;
+        let escrow_account_len = borsh::max_serialized_size::<Escrow>()?;
         let escrow_account_lamports = self
             .client
             .get_minimum_balance_for_rent_exemption(escrow_account_len)
@@ -141,13 +142,14 @@ impl Client {
     /// Exchange the tokens in the escrow account.
     pub async fn exchange(&self, escrow_account_pubkey: Pubkey) -> Result<Signature> {
         let escrow_account = self.client.get_account(&escrow_account_pubkey).await?;
-        let escrow_state = escrow_program::state::Escrow::try_from_slice(&escrow_account.data)?;
+        let escrow_state = Escrow::try_from_slice(&escrow_account.data)?;
 
-        let seller_account = self
+        let seller_token_account = self
             .client
             .get_account(&escrow_state.seller_token_account_pubkey)
             .await?;
-        let seller_token_account_state = spl_token::state::Account::unpack(&seller_account.data)?;
+        let seller_token_account_state =
+            spl_token::state::Account::unpack(&seller_token_account.data)?;
 
         let temp_token_account = self
             .client
@@ -198,9 +200,9 @@ impl Client {
     }
 
     /// Get the escrow account state.
-    pub async fn account(&self, account_pubkey: Pubkey) -> Result<escrow_program::state::Escrow> {
+    pub async fn account(&self, account_pubkey: Pubkey) -> Result<Escrow> {
         let account = self.client.get_account(&account_pubkey).await?;
-        let state = escrow_program::state::Escrow::try_from_slice(&account.data)?;
+        let state = Escrow::try_from_slice(&account.data)?;
 
         Ok(state)
     }
