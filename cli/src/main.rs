@@ -1,11 +1,9 @@
-mod config;
-
-use crate::config::Config;
 use clap::{Parser, Subcommand};
 use escrow_client::Client;
 use solana_client::nonblocking::rpc_client::RpcClient;
 use solana_sdk::commitment_config::CommitmentConfig;
 use solana_sdk::pubkey::Pubkey;
+use solana_sdk::signature::{EncodableKey, Keypair};
 use std::env;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
@@ -76,11 +74,12 @@ async fn main() -> anyhow::Result<()> {
             })
         })
         .unwrap();
-    let config = Config::load(path)?;
+    let config = solana_cli_config::Config::load(path.to_str().unwrap())?;
+    let keypair = Keypair::read_from_file(config.keypair_path)
+        .map_err(|e| anyhow::Error::msg(e.to_string()))?;
 
-    let keypair = config.load_keypair()?;
-    let json_rpc_url = config.json_rpc_url().to_string();
-    let commitment_config = CommitmentConfig::from_str(config.commitment())?;
+    let json_rpc_url = config.json_rpc_url.to_string();
+    let commitment_config = CommitmentConfig::from_str(&config.commitment)?;
     let rpc_client = Arc::new(RpcClient::new_with_commitment(
         json_rpc_url,
         commitment_config,

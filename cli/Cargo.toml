@@ -11,6 +11,7 @@ escrow-program = { path = "../program", features = ["no-entrypoint"] }
 serde = '1.0.188'
 serde_json = "1.0.107"
 serde_yaml = "0.9.25"
+solana-cli-config = "1.18.17"
 solana-client = "1.18.17"
 solana-sdk = "1.18.17"
 tokio = { version = "1.38.0", features = ["full"] }
