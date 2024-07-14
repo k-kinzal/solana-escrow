@@ -17,9 +17,9 @@ pub enum ClientError {
     RpcError(#[from] solana_rpc_client_api::client_error::Error),
     #[error("{0}")]
     ProgramError(#[from] ProgramError),
-    #[error("error")]
+    #[error("{0:?}")]
     SerializeSizeError(borsh::schema::SchemaMaxSerializedSizeError),
-    #[error("error")]
+    #[error("{0}")]
     IoError(#[from] std::io::Error),
 }
 
