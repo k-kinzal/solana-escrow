@@ -1,4 +1,4 @@
-mod token;
+mod accounts;
 
 use borsh::BorshDeserialize;
 use solana_faucet::faucet;
@@ -161,11 +161,11 @@ async fn test_initialize() -> anyhow::Result<()> {
             ),
             (
                 send_mint_token_account.pubkey(),
-                token::mint_account(None, 1_000_000_000, 9, None),
+                accounts::mint_account(None, 1_000_000_000, 9, None),
             ),
             (
                 send_associated_token_account_pubkey,
-                token::associated_token_account(
+                accounts::associated_token_account(
                     send_mint_token_account.pubkey(),
                     payer.pubkey(),
                     100,
@@ -178,11 +178,11 @@ async fn test_initialize() -> anyhow::Result<()> {
             ),
             (
                 receive_mint_token_account.pubkey(),
-                token::mint_account(None, 1_000_000_000, 9, None),
+                accounts::mint_account(None, 1_000_000_000, 9, None),
             ),
             (
                 receive_associated_token_account_pubkey,
-                token::associated_token_account(
+                accounts::associated_token_account(
                     receive_mint_token_account.pubkey(),
                     payer.pubkey(),
                     0,
@@ -341,15 +341,15 @@ async fn test_exchange() -> anyhow::Result<()> {
             ),
             (
                 send_mint_token_account.pubkey(),
-                token::mint_account(None, 1_000_000_000, 0, None),
+                accounts::mint_account(None, 1_000_000_000, 0, None),
             ),
             (
                 receive_mint_token_account.pubkey(),
-                token::mint_account(None, 1_000_000_000, 0, None),
+                accounts::mint_account(None, 1_000_000_000, 0, None),
             ),
             (
                 sender_send_associated_token_account_pubkey,
-                token::associated_token_account(
+                accounts::associated_token_account(
                     send_mint_token_account.pubkey(),
                     sender.pubkey(),
                     0,
@@ -362,7 +362,7 @@ async fn test_exchange() -> anyhow::Result<()> {
             ),
             (
                 sender_receive_associated_token_account_pubkey,
-                token::associated_token_account(
+                accounts::associated_token_account(
                     receive_mint_token_account.pubkey(),
                     sender.pubkey(),
                     0,
@@ -375,7 +375,7 @@ async fn test_exchange() -> anyhow::Result<()> {
             ),
             (
                 receiver_send_associated_token_account_pubkey,
-                token::associated_token_account(
+                accounts::associated_token_account(
                     receive_mint_token_account.pubkey(),
                     receiver.pubkey(),
                     100,
@@ -388,7 +388,7 @@ async fn test_exchange() -> anyhow::Result<()> {
             ),
             (
                 receiver_receive_associated_token_account_pubkey,
-                token::associated_token_account(
+                accounts::associated_token_account(
                     send_mint_token_account.pubkey(),
                     receiver.pubkey(),
                     0,
@@ -401,7 +401,7 @@ async fn test_exchange() -> anyhow::Result<()> {
             ),
             (
                 tmp_token_account.pubkey(),
-                token::associated_token_account(
+                accounts::associated_token_account(
                     send_mint_token_account.pubkey(),
                     pda,
                     100,
@@ -414,7 +414,7 @@ async fn test_exchange() -> anyhow::Result<()> {
             ),
             (
                 escrow_account.pubkey(),
-                token::escrow_account(
+                accounts::escrow_account(
                     sender.pubkey(),
                     sender_receive_associated_token_account_pubkey,
                     tmp_token_account.pubkey(),
