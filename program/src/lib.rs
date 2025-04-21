@@ -9,4 +9,4 @@ pub mod state;
 #[cfg(not(feature = "no-entrypoint"))]
 mod entrypoint;
 
-declare_id!("GaDuBQ9poRLs8vDYQTQQqcyYfSSvYqXqGDB9JCtgNyA5");
+declare_id!("6NYZcL1SDYURfnNFZVNj6qGo5rpqeL1SAT9nHjzq2WzM");
