@@ -298,3 +298,291 @@ async fn test_initialize() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[tokio::test]
+async fn test_exchange() -> anyhow::Result<()> {
+    let sender = Keypair::new();
+    let receiver = Keypair::new();
+    let send_mint_token_account = Keypair::new();
+    let receive_mint_token_account = Keypair::new();
+    let sender_send_associated_token_account_pubkey =
+        spl_associated_token_account::get_associated_token_address_with_program_id(
+            &sender.pubkey(),
+            &send_mint_token_account.pubkey(),
+            &spl_token::id(),
+        );
+    let sender_receive_associated_token_account_pubkey =
+        spl_associated_token_account::get_associated_token_address_with_program_id(
+            &sender.pubkey(),
+            &receive_mint_token_account.pubkey(),
+            &spl_token::id(),
+        );
+    let receiver_send_associated_token_account_pubkey =
+        spl_associated_token_account::get_associated_token_address_with_program_id(
+            &receiver.pubkey(),
+            &receive_mint_token_account.pubkey(),
+            &spl_token::id(),
+        );
+    let receiver_receive_associated_token_account_pubkey =
+        spl_associated_token_account::get_associated_token_address_with_program_id(
+            &receiver.pubkey(),
+            &send_mint_token_account.pubkey(),
+            &spl_token::id(),
+        );
+    let tmp_token_account = Keypair::new();
+    let escrow_account = Keypair::new();
+    let (pda, _) = Pubkey::find_program_address(&[b"escrow"], &escrow_program::id());
+
+    let (validator, _) = Validator::default()
+        .with_accounts(vec![
+            (
+                receiver.pubkey(),
+                AccountSharedData::new(1_000_000_000, 0, &system_program::id()),
+            ),
+            (
+                send_mint_token_account.pubkey(),
+                token::mint_account(None, 1_000_000_000, 0, None),
+            ),
+            (
+                receive_mint_token_account.pubkey(),
+                token::mint_account(None, 1_000_000_000, 0, None),
+            ),
+            (
+                sender_send_associated_token_account_pubkey,
+                token::associated_token_account(
+                    send_mint_token_account.pubkey(),
+                    sender.pubkey(),
+                    0,
+                    None,
+                    AccountState::Initialized,
+                    None,
+                    0,
+                    None,
+                ),
+            ),
+            (
+                sender_receive_associated_token_account_pubkey,
+                token::associated_token_account(
+                    receive_mint_token_account.pubkey(),
+                    sender.pubkey(),
+                    0,
+                    None,
+                    AccountState::Initialized,
+                    None,
+                    0,
+                    None,
+                ),
+            ),
+            (
+                receiver_send_associated_token_account_pubkey,
+                token::associated_token_account(
+                    receive_mint_token_account.pubkey(),
+                    receiver.pubkey(),
+                    100,
+                    None,
+                    AccountState::Initialized,
+                    None,
+                    0,
+                    None,
+                ),
+            ),
+            (
+                receiver_receive_associated_token_account_pubkey,
+                token::associated_token_account(
+                    send_mint_token_account.pubkey(),
+                    receiver.pubkey(),
+                    0,
+                    None,
+                    AccountState::Initialized,
+                    None,
+                    0,
+                    None,
+                ),
+            ),
+            (
+                tmp_token_account.pubkey(),
+                token::associated_token_account(
+                    send_mint_token_account.pubkey(),
+                    pda,
+                    100,
+                    None,
+                    AccountState::Initialized,
+                    None,
+                    0,
+                    None,
+                ),
+            ),
+            (
+                escrow_account.pubkey(),
+                token::escrow_account(
+                    sender.pubkey(),
+                    sender_receive_associated_token_account_pubkey,
+                    tmp_token_account.pubkey(),
+                    100,
+                ),
+            ),
+        ])
+        .start()
+        .await?;
+
+    let client = Arc::new(validator.get_async_rpc_client());
+    let escrow = escrow_client::Client::builder(client.clone(), receiver.insecure_clone())
+        .with_rpc_send_transaction_config(RpcSendTransactionConfig {
+            skip_preflight: true,
+            preflight_commitment: Some(CommitmentLevel::Processed),
+            ..RpcSendTransactionConfig::default()
+        })
+        .with_escrow_program_id(escrow_program::id())
+        .with_token_program_id(spl_token::id())
+        .build();
+
+    let _ = escrow.exchange(escrow_account.pubkey()).await?;
+
+    let sender_send_associated_token_account = client
+        .get_account(&sender_send_associated_token_account_pubkey)
+        .await?;
+    let sender_send_associated_token_account_data =
+        spl_token::state::Account::unpack(&sender_send_associated_token_account.data)?;
+    assert_eq!(
+        sender_send_associated_token_account_data.mint,
+        send_mint_token_account.pubkey()
+    );
+    assert_eq!(
+        sender_send_associated_token_account_data.owner,
+        sender.pubkey()
+    );
+    assert_eq!(sender_send_associated_token_account_data.amount, 0);
+    assert_eq!(
+        sender_send_associated_token_account_data.state,
+        AccountState::Initialized
+    );
+    assert_eq!(
+        sender_send_associated_token_account_data.delegate,
+        COption::None
+    );
+    assert_eq!(
+        sender_send_associated_token_account_data.delegated_amount,
+        0
+    );
+    assert_eq!(
+        sender_send_associated_token_account_data.is_native,
+        COption::None
+    );
+    assert_eq!(
+        sender_send_associated_token_account_data.close_authority,
+        COption::None
+    );
+
+    let sender_receive_associated_token_account = client
+        .get_account(&sender_receive_associated_token_account_pubkey)
+        .await?;
+    let sender_receive_associated_token_account_data =
+        spl_token::state::Account::unpack(&sender_receive_associated_token_account.data)?;
+    assert_eq!(
+        sender_receive_associated_token_account_data.mint,
+        receive_mint_token_account.pubkey()
+    );
+    assert_eq!(
+        sender_receive_associated_token_account_data.owner,
+        sender.pubkey()
+    );
+    assert_eq!(sender_receive_associated_token_account_data.amount, 100);
+    assert_eq!(
+        sender_receive_associated_token_account_data.state,
+        AccountState::Initialized
+    );
+    assert_eq!(
+        sender_receive_associated_token_account_data.delegate,
+        COption::None
+    );
+    assert_eq!(
+        sender_receive_associated_token_account_data.delegated_amount,
+        0
+    );
+    assert_eq!(
+        sender_receive_associated_token_account_data.is_native,
+        COption::None
+    );
+    assert_eq!(
+        sender_receive_associated_token_account_data.close_authority,
+        COption::None
+    );
+
+    let receiver_send_associated_token_account = client
+        .get_account(&receiver_send_associated_token_account_pubkey)
+        .await?;
+    let receiver_send_associated_token_account_data =
+        spl_token::state::Account::unpack(&receiver_send_associated_token_account.data)?;
+    assert_eq!(
+        receiver_send_associated_token_account_data.mint,
+        receive_mint_token_account.pubkey()
+    );
+    assert_eq!(
+        receiver_send_associated_token_account_data.owner,
+        receiver.pubkey()
+    );
+    assert_eq!(receiver_send_associated_token_account_data.amount, 0);
+    assert_eq!(
+        receiver_send_associated_token_account_data.state,
+        AccountState::Initialized
+    );
+    assert_eq!(
+        receiver_send_associated_token_account_data.delegate,
+        COption::None
+    );
+    assert_eq!(
+        receiver_send_associated_token_account_data.delegated_amount,
+        0
+    );
+    assert_eq!(
+        receiver_send_associated_token_account_data.is_native,
+        COption::None
+    );
+    assert_eq!(
+        receiver_send_associated_token_account_data.close_authority,
+        COption::None
+    );
+
+    let receiver_receive_associated_token_account = client
+        .get_account(&receiver_receive_associated_token_account_pubkey)
+        .await?;
+    let receiver_receive_associated_token_account_data =
+        spl_token::state::Account::unpack(&receiver_receive_associated_token_account.data)?;
+    assert_eq!(
+        receiver_receive_associated_token_account_data.mint,
+        send_mint_token_account.pubkey()
+    );
+    assert_eq!(
+        receiver_receive_associated_token_account_data.owner,
+        receiver.pubkey()
+    );
+    assert_eq!(receiver_receive_associated_token_account_data.amount, 100);
+    assert_eq!(
+        receiver_receive_associated_token_account_data.state,
+        AccountState::Initialized
+    );
+    assert_eq!(
+        receiver_receive_associated_token_account_data.delegate,
+        COption::None
+    );
+    assert_eq!(
+        receiver_receive_associated_token_account_data.delegated_amount,
+        0
+    );
+    assert_eq!(
+        receiver_receive_associated_token_account_data.is_native,
+        COption::None
+    );
+    assert_eq!(
+        receiver_receive_associated_token_account_data.close_authority,
+        COption::None
+    );
+
+    let tmp_token_account = client.get_account(&tmp_token_account.pubkey()).await;
+    assert_eq!(tmp_token_account.is_err(), true);
+
+    let escrow_account = client.get_account(&escrow_account.pubkey()).await;
+    assert_eq!(escrow_account.is_err(), true);
+
+    Ok(())
+}
