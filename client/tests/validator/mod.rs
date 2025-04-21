@@ -27,12 +27,14 @@ impl Default for Validator {
 
 impl Validator {
     /// Set the ledger path for the validator.
+    #[allow(dead_code)]
     pub fn with_ledger_path(mut self, ledger_path: PathBuf) -> Self {
         self.ledger_path = Some(ledger_path);
         self
     }
 
     /// Set the program directory for the validator.
+    #[allow(dead_code)]
     pub fn with_program_dir(mut self, program_dir: PathBuf) -> Self {
         self.program_dir = Some(program_dir);
         self
