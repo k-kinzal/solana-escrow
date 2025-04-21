@@ -1,6 +1,7 @@
 use borsh::BorshDeserialize;
 use escrow_program::state::Escrow;
 use solana_client::nonblocking::rpc_client::RpcClient;
+use solana_rpc_client_api::config::RpcSendTransactionConfig;
 use solana_sdk::program_error::ProgramError;
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::rent::Rent;
@@ -39,6 +40,9 @@ pub struct Client {
     /// Keypair of the payer.
     payer: Keypair,
 
+    /// Configuration for sending transactions.
+    rpc_send_transaction_config: RpcSendTransactionConfig,
+
     /// Escrow program ID.
     escrow_program_id: Pubkey,
 
@@ -65,6 +69,7 @@ impl Client {
                 &send_mint_token_account_pubkey,
                 &self.token_program_id,
             );
+
         let receive_seller_token_account_pubkey =
             spl_associated_token_account::get_associated_token_address_with_program_id(
                 &self.payer.pubkey(),
@@ -134,7 +139,14 @@ impl Client {
             blockhash,
         );
 
-        let signature = self.client.send_transaction(&tx).await?;
+        let signature = self
+            .client
+            .send_and_confirm_transaction_with_spinner_and_config(
+                &tx,
+                self.client.commitment(),
+                self.rpc_send_transaction_config.clone(),
+            )
+            .await?;
 
         Ok((signature, escrow_account.pubkey()))
     }
@@ -195,7 +207,14 @@ impl Client {
             blockhash,
         );
 
-        let signature = self.client.send_transaction(&tx).await?;
+        let signature = self
+            .client
+            .send_and_confirm_transaction_with_spinner_and_config(
+                &tx,
+                self.client.commitment(),
+                self.rpc_send_transaction_config.clone(),
+            )
+            .await?;
         Ok(signature)
     }
 
@@ -216,6 +235,9 @@ pub struct ClientBuilder {
     /// Keypair of the payer.
     payer: Keypair,
 
+    /// Configuration for sending transactions.
+    rpc_send_transaction_config: RpcSendTransactionConfig,
+
     /// Escrow program ID.
     /// Default is the escrow program ID.
     escrow_program_id: Option<Pubkey>,
@@ -230,9 +252,18 @@ impl ClientBuilder {
         Self {
             client,
             payer,
+            rpc_send_transaction_config: Default::default(),
             escrow_program_id: None,
             token_program_id: None,
         }
+    }
+
+    pub fn with_rpc_send_transaction_config(
+        mut self,
+        rpc_send_transaction_config: RpcSendTransactionConfig,
+    ) -> Self {
+        self.rpc_send_transaction_config = rpc_send_transaction_config;
+        self
     }
 
     pub fn with_escrow_program_id(mut self, escrow_program_id: Pubkey) -> Self {
@@ -250,6 +281,7 @@ impl ClientBuilder {
         Client {
             client: self.client,
             payer: self.payer,
+            rpc_send_transaction_config: self.rpc_send_transaction_config,
             escrow_program_id: self.escrow_program_id.unwrap_or_else(escrow_program::id),
             token_program_id: self.token_program_id.unwrap_or_else(spl_token::id),
         }
